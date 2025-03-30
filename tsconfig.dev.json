@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.production.json",
+  "compilerOptions": {
+    "outDir": "./public/.js/src/plugins"
+  }
+}

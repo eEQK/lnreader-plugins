@@ -34,8 +34,12 @@ Repository to host plugins and related issues, and requests for
     * Run `npm run host-linux` or `npm run host-windows` (depending on your operating system)
     * Add your `https://raw.githubusercontent.com/<username>/<repo>/plugins/<tag>/.dist/plugins.min.json` to app repository
 2. Plugins from localhost
-    * Copy `.env.template` to `.env` and update `USER_CONTENT_BASE` according to the comment there
-    * Run `npm run host-dev`
+    * Run `BASE_URL=<see below> npm run host-dev`
+        * leave empty to use default: `https://raw.githubusercontent.com/${USERNAME}/${REPO}/${CURRENT_BRANCH}`
+        * for android emulator use `http://10.0.2.2:3000`
+        * for iOS simulator use `http://localhost:3000`
+        * for a real device use the IP address of your computer in the local network (e.g. 192.168.21.37)
+        * example for android emulator: `BASE_URL=http://10.0.2.2:3000 npm run host-dev`
     * Add plugin listing to app repository (e.g. for android emulator `http://10.0.2.2/.dist/plugins.min.json`)
 
 ---

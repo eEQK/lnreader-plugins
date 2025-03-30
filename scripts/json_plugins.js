@@ -4,6 +4,8 @@ import languages from './languages.js';
 import { execSync } from 'child_process';
 import { minify } from './terser.js';
 
+import commandLineArgs from 'command-line-args';
+
 const REMOTE = execSync('git remote get-url origin')
   .toString()
   .replace(/[\s\n]/g, '');
@@ -14,19 +16,54 @@ const matched = REMOTE.match(/([^:/]+?)\/([^/.]+)(\.git)?$/);
 if (!matched) throw Error('Cant parse git url');
 const USERNAME = matched[1];
 const REPO = matched[2];
-const USER_CONTENT_LINK = process.env.USER_CONTENT_BASE
-  ? process.env.USER_CONTENT_BASE
-  : `https://raw.githubusercontent.com/${USERNAME}/${REPO}/${CURRENT_BRANCH}`;
+const FALLBACK_HOST = `https://raw.githubusercontent.com/${USERNAME}/${REPO}/${CURRENT_BRANCH}`;
 
-const STATIC_LINK = `${USER_CONTENT_LINK}/public/static`;
-const PLUGIN_LINK = `${USER_CONTENT_LINK}/.js/src/plugins`;
+const BASE_URL = process.env.BASE_URL ? process.env.BASE_URL : FALLBACK_HOST;
 
-const DIST_DIR = '.dist';
+/** @type commandLineArgs.OptionDefinition[] */
+const optionDefinitions = [
+  { name: 'output', alias: 'o', type: String, defaultValue: '.dist' },
+  { name: 'js', alias: 'j', type: String, defaultValue: './.js/src/plugins' },
+  { name: 'static', alias: 's', type: String, defaultValue: `/public/static` },
+  {
+    name: 'plugin',
+    alias: 'p',
+    type: String,
+    defaultValue: `/.js/src/plugins`,
+  },
+  { name: 'help', alias: 'h', type: Boolean },
+];
+
+const {
+  output: DIST_DIR,
+  js: COMPILED_PLUGIN_DIR,
+  plugin: PLUGIN_LINK,
+  static: STATIC_LINK,
+  help,
+} = commandLineArgs(optionDefinitions);
+
+if (help) {
+  console.log(`
+  Usage: node json_plugins.js [options]
+
+  Options:
+    -o, --output <path>     Output directory for the json files
+    -j, --js <path>         Relative path to the compiled plugins
+                            Used by this script to get a list of plugins
+    -p, --plugin <url>      Plugin link (without base url)
+                            It will be used to generate the plugin url in output json
+    -s, --static <url>      Static link (without base url)
+                            It will be used to generate the icon url in output json
+    -h, --help              Display this help message
+  `);
+  process.exit(0);
+}
+
+if (!fs.existsSync(DIST_DIR)) {
+  fs.mkdirSync(DIST_DIR, { recursive: true });
+}
 
 const json = [];
-if (!fs.existsSync(DIST_DIR)) {
-  fs.mkdirSync(DIST_DIR);
-}
 const jsonPath = path.join(DIST_DIR, 'plugins.json');
 const jsonMinPath = path.join(DIST_DIR, 'plugins.min.json');
 const pluginSet = new Set();
@@ -51,8 +88,6 @@ const createRecursiveProxy = () => {
 const proxy = createRecursiveProxy();
 
 const _require = () => proxy;
-
-const COMPILED_PLUGIN_DIR = './.js/src/plugins';
 
 for (let language in languages) {
   // language with English name
@@ -82,10 +117,12 @@ for (let language in languages) {
       site,
       lang: languages[language],
       version,
-      url: `${PLUGIN_LINK}/${language.toLowerCase()}/${plugin}`,
-      iconUrl: `${STATIC_LINK}/${icon || 'siteNotAvailable.png'}`,
-      customJS: customJS ? `${STATIC_LINK}/${customJS}` : undefined,
-      customCSS: customCSS ? `${STATIC_LINK}/${customCSS}` : undefined,
+      url: `${BASE_URL}${PLUGIN_LINK}/${language.toLowerCase()}/${plugin}`,
+      iconUrl: `${BASE_URL}${STATIC_LINK}/${icon || 'siteNotAvailable.png'}`,
+      customJS: customJS ? `${BASE_URL}${STATIC_LINK}/${customJS}` : undefined,
+      customCSS: customCSS
+        ? `${BASE_URL}${STATIC_LINK}/${customCSS}`
+        : undefined,
     };
 
     if (pluginSet.has(id)) {
